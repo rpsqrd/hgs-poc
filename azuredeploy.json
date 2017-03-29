@@ -51,9 +51,11 @@
     {
       "type": "Microsoft.Compute/availabilitySets",
       "name": "[variables('availabilitySetName')]",
-      "apiVersion": "2015-06-15",
+      "apiVersion": "2016-04-30-preview",
       "location": "[resourceGroup().location]",
-      "properties": {}
+      "properties": {
+        "managed": true
+      }
     },
     {
       "apiVersion": "2015-06-15",
