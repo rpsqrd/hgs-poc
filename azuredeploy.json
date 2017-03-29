@@ -22,19 +22,14 @@
     }
   },
   "variables": {
-    "vmNamePrefix": "myVM",
-    "lbName": "myLB",
-    "nicNamePrefix": "nic",
-    "publicIPAddressName": "myPublicIP",
-    "vnetName": "myVNET",
-    "imagePublisher": "MicrosoftWindowsServer",
-    "imageOffer": "WindowsServer",
-    "imageSKU": "2016-Datacenter",
+    "vmNamePrefix": "HGS",
+    "lbName": "HGS-LoadBalancer",
+    "nicNamePrefix": "HGS-NIC",
+    "publicIPAddressName": "HGS-PublicIP",
+    "vnetName": "HGS-VNET",
+
     "vmSize": "Standard_D1_V2",
-    "AttestationMode": "TrustTpm",      
-    "storageAccountType": "Standard_LRS",
-    "vmStorageAccountContainerName": "vhds",
-    "availabilitySetName": "myAvSet",
+    "availabilitySetName": "HGS-AvailabilitySet",
     "addressPrefix": "10.0.0.0/16",
     "subnetName": "Subnet-1",
     "subnetPrefix": "10.0.0.0/24",
@@ -46,22 +41,13 @@
     "lbID": "[resourceId('Microsoft.Network/loadBalancers',variables('lbName'))]",
     "lbrulePrefix": "lbRule",
     "lbprobePrefix": "lbprobe",
-    "numberOfInstances": 3,
+    "numberOfInstances": 2,
     "frontEndIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/loadBalancerFrontend')]",
     "storageAccountName": "[uniqueString(resourceGroup().id)]",
-    "DSCInitScriptFolder": "https://raw.githubusercontent.com/juantian/HGS-POC/master/scripts/",
+    "DSCInitScriptFolder": "https://raw.githubusercontent.com/rpsqrd/HGS-POC/master/scripts/",
     "DSCInitScriptFileName": "dscinit.ps1"
   },
   "resources": [
-    {
-      "type": "Microsoft.Storage/storageAccounts",
-      "name": "[variables('storageAccountName')]",
-      "apiVersion": "2015-05-01-preview",
-      "location": "[resourceGroup().location]",
-      "properties": {
-        "accountType": "[variables('storageAccountType')]"
-      }
-    },
     {
       "type": "Microsoft.Compute/availabilitySets",
       "name": "[variables('availabilitySetName')]",
@@ -95,7 +81,7 @@
         "dhcpOptions": {
           "dnsServers": [
             "[variables('subnetdns')]",
-            "8.8.8.8" 
+            "8.8.8.8"
           ]
         },
         "subnets": [
@@ -106,7 +92,7 @@
             }
           }
         ]
-      }    
+      }
     },
     {
       "apiVersion": "2015-06-15",
@@ -131,30 +117,30 @@
             "properties": {
               "privateIPAllocationMethod": "Static",
               "privateIPAddress": "[concat('10.0.0.', copyindex(4))]",
-               "subnet": {
-                  "id": "[variables('subnetRef')]"
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              },
+              "loadBalancerBackendAddressPools": [
+                {
+                  "id": "[concat(variables('lbID'), '/backendAddressPools/LoadBalancerBackend')]"
+                }
+              ],
+              "loadBalancerInboundNatRules": [
+                {
+                  "id": "[concat(variables('lbID'),'/inboundNatRules/RDP-VM', copyindex())]"
                 },
-                "loadBalancerBackendAddressPools": [
-                  {
-                    "id": "[concat(variables('lbID'), '/backendAddressPools/LoadBalancerBackend')]"
-                  }
-                ],
-                "loadBalancerInboundNatRules": [
-                  {
-                    "id": "[concat(variables('lbID'),'/inboundNatRules/RDP-VM', copyindex())]"
-                  }, 
-                  { 
-                    "id": "[concat(variables('lbID'),'/inboundNatRules/WINRM-VM-HTTP', copyindex())]" 
-                  } , 
-                  { 
-                    "id": "[concat(variables('lbID'),'/inboundNatRules/WINRM-VM-HTTPS', copyindex())]" 
-                  } 
-                ]
-              }
+                {
+                  "id": "[concat(variables('lbID'),'/inboundNatRules/WINRM-VM-HTTP', copyindex())]"
+                },
+                {
+                  "id": "[concat(variables('lbID'),'/inboundNatRules/WINRM-VM-HTTPS', copyindex())]"
+                }
+              ]
             }
-            ]
           }
-      },
+        ]
+      }
+    },
     {
       "apiVersion": "2015-06-15",
       "name": "[variables('lbName')]",
@@ -198,24 +184,24 @@
             },
             "Name": "[concat(variables('lbrulePrefix'), '80')]"
           },
-        {
-          "properties": {
-            "frontendIPConfiguration": {
-              "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/frontendIpConfigurations/LoadBalancerFrontend')]"
+          {
+            "properties": {
+              "frontendIPConfiguration": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/frontendIpConfigurations/LoadBalancerFrontend')]"
+              },
+              "backendAddressPool": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/backendAddressPools/LoadBalancerBackend')]"
+              },
+              "probe": {
+                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/probes/lbprobe443')]"
+              },
+              "protocol": "Tcp",
+              "frontendPort": 443,
+              "backendPort": 443,
+              "idleTimeoutInMinutes": 15
             },
-            "backendAddressPool": {
-              "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/backendAddressPools/LoadBalancerBackend')]"
-            },
-            "probe": {
-              "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/probes/lbprobe443')]"
-            },
-            "protocol": "Tcp",
-            "frontendPort": 443,
-            "backendPort": 443,
-            "idleTimeoutInMinutes": 15
-          },
-          "Name": "[concat(variables('lbrulePrefix'), '443')]"
-        }
+            "Name": "[concat(variables('lbrulePrefix'), '443')]"
+          }
         ],
         "probes": [
           {
@@ -262,142 +248,141 @@
       }
     },
     {
-        "apiVersion": "2015-06-15",
-        "type": "Microsoft.Network/loadBalancers/inboundNatRules",
-        "name": "[concat(variables('lbName'), '/', 'WINRM-VM-HTTP', copyIndex())]",
-        "location": "[resourceGroup().location]",
-        "copy": {
-          "name": "lbNatLoop",
-          "count": "[variables('numberOfInstances')]"
-        },
-        "dependsOn": [
-          "[concat('Microsoft.Network/loadBalancers/', variables('lbName'))]"
-        ],
-        "properties": {
-          "frontendIPConfiguration": {
-            "id": "[variables('frontEndIPConfigID')]"
-          },
-          "protocol": "tcp",
-          "frontendPort": "[copyIndex(50000)]",
-          "backendPort": 5985,
-          "enableFloatingIP": false
-        }
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/loadBalancers/inboundNatRules",
+      "name": "[concat(variables('lbName'), '/', 'WINRM-VM-HTTP', copyIndex())]",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "lbNatLoop",
+        "count": "[variables('numberOfInstances')]"
       },
-      {
-        "apiVersion": "2015-06-15",
-        "type": "Microsoft.Network/loadBalancers/inboundNatRules",
-        "name": "[concat(variables('lbName'), '/', 'WINRM-VM-HTTPS', copyIndex())]",
-        "location": "[resourceGroup().location]",
-        "copy": {
-          "name": "lbNatLoop",
-          "count": "[variables('numberOfInstances')]"
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', variables('lbName'))]"
+      ],
+      "properties": {
+        "frontendIPConfiguration": {
+          "id": "[variables('frontEndIPConfigID')]"
         },
-        "dependsOn": [
-          "[concat('Microsoft.Network/loadBalancers/', variables('lbName'))]"
-        ],
-        "properties": {
-          "frontendIPConfiguration": {
-            "id": "[variables('frontEndIPConfigID')]"
-          },
-          "protocol": "tcp",
-          "frontendPort": "[copyIndex(51000)]",
-          "backendPort": 5986,
-          "enableFloatingIP": false
-        }
-      },
-      {
-        "apiVersion": "2015-06-15",
-        "type": "Microsoft.Compute/virtualMachines",
-        "name": "[concat(variables('vmNamePrefix'), copyindex())]",
-        "copy": {
-          "name": "virtualMachineLoop",
-          "count": "[variables('numberOfInstances')]"
-        },
-        "location": "[resourceGroup().location]",
-        "dependsOn": [
-          "[concat('Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
-          "[concat('Microsoft.Network/networkInterfaces/',variables('nicNamePrefix'), copyindex())]",
-          "[concat('Microsoft.Compute/availabilitySets/', variables('availabilitySetName'))]"
-        ],
-        "properties": {
-          "availabilitySet": {
-            "id": "[resourceId('Microsoft.Compute/availabilitySets',variables('availabilitySetName'))]"
-          },
-          "hardwareProfile": {
-            "vmSize": "[variables('vmSize')]"
-          },
-          "osProfile": {
-            "computerName": "[concat(variables('vmNamePrefix'), copyIndex())]",
-            "adminUsername": "[parameters('adminUsername')]",
-            "adminPassword": "[parameters('adminPassword')]",
-            "windowsConfiguration": {
-              "provisionVMAgent": "true",
-              "winRM": {
-                "listeners": [
-                  {
-                    "protocol": "http"
-                  } 
-                ]
-              },
-              "enableAutomaticUpdates": "true"
-            }           
-          },
-          "storageProfile": {
-            "imageReference": {
-              "publisher": "[variables('imagePublisher')]",
-              "offer": "[variables('imageOffer')]",
-              "sku": "[variables('imageSKU')]",
-              "version": "latest"
-            },
-            "osDisk": {
-              "name": "osdisk",
-              "vhd": {
-                "uri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net/vhds/','osdisk', copyindex(), '.vhd')]"
-              },
-              "caching": "ReadWrite",
-              "createOption": "FromImage"
-            }
-          },
-          "networkProfile": {
-            "networkInterfaces": [
-              {
-                "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(variables('nicNamePrefix'),copyindex()))]"
-              }
-            ]
-          },
-          "diagnosticsProfile": {
-            "bootDiagnostics": {
-              "enabled": "true",
-              "storageUri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net')]"
-            }
-          }
-        },
-        "resources": [
-          {
-            "name": "[concat('DSCInit', copyIndex())]",
-            "type": "extensions",
-            "location": "[resourceGroup().location]",
-            "apiVersion": "2015-06-15",
-            "dependsOn": [
-              "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('vmNamePrefix'), copyindex()))]"
-            ],
-            "tags": {
-              "displayName": "[concat('DSCInit', copyIndex())]"
-            },
-            "properties": {
-              "publisher": "Microsoft.Compute",
-              "type": "CustomScriptExtension",
-              "typeHandlerVersion": "1.4",
-              "autoUpgradeMinorVersion": true,
-              "settings": {
-                "fileUris": [
-                  "[concat(variables('DSCInitScriptFolder') , variables('DSCInitScriptFileName'))]"
-                ],
-                "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeType:', copyindex()) ,' -HgsServerPrimaryIPAddress:10.0.0.4',  concat(' -HgsServerPrimaryAdminUsername:', parameters('adminUsername')), concat(' -HgsServerPrimaryAdminPassword:', parameters('adminPassword')), concat(' -HttpsCertificateName:', reference(variables('publicIPAddressName')).dnsSettings.fqdn) )]"
-              }
-            }
-          }
-        ]
+        "protocol": "tcp",
+        "frontendPort": "[copyIndex(50000)]",
+        "backendPort": 5985,
+        "enableFloatingIP": false
       }
+    },
+    {
+      "apiVersion": "2015-06-15",
+      "type": "Microsoft.Network/loadBalancers/inboundNatRules",
+      "name": "[concat(variables('lbName'), '/', 'WINRM-VM-HTTPS', copyIndex())]",
+      "location": "[resourceGroup().location]",
+      "copy": {
+        "name": "lbNatLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "dependsOn": [
+        "[concat('Microsoft.Network/loadBalancers/', variables('lbName'))]"
+      ],
+      "properties": {
+        "frontendIPConfiguration": {
+          "id": "[variables('frontEndIPConfigID')]"
+        },
+        "protocol": "tcp",
+        "frontendPort": "[copyIndex(51000)]",
+        "backendPort": 5986,
+        "enableFloatingIP": false
+      }
+    },
+    {
+      "apiVersion": "2016-04-30-preview",
+      "type": "Microsoft.Compute/virtualMachines",
+      "name": "[concat(variables('vmNamePrefix'), copyindex())]",
+      "copy": {
+        "name": "virtualMachineLoop",
+        "count": "[variables('numberOfInstances')]"
+      },
+      "location": "[resourceGroup().location]",
+      "dependsOn": [
+        "[concat('Microsoft.Network/networkInterfaces/',variables('nicNamePrefix'), copyindex())]",
+        "[concat('Microsoft.Compute/availabilitySets/', variables('availabilitySetName'))]"
+      ],
+      "properties": {
+        "availabilitySet": {
+          "id": "[resourceId('Microsoft.Compute/availabilitySets',variables('availabilitySetName'))]"
+        },
+        "hardwareProfile": {
+          "vmSize": "[variables('vmSize')]"
+        },
+        "osProfile": {
+          "computerName": "[concat(variables('vmNamePrefix'), copyIndex())]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]",
+          "windowsConfiguration": {
+            "provisionVMAgent": "true",
+            "winRM": {
+              "listeners": [
+                {
+                  "protocol": "http"
+                }
+              ]
+            },
+            "enableAutomaticUpdates": "true"
+          }
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "MicrosoftWindowsServer",
+            "offer": "WindowsServer",
+            "sku": "2016-Datacenter",
+            "version": "latest"
+          },
+          "osDisk": {
+            "name": "[concat(variables('vmNamePrefix'), copyIndex())]",
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          },
+          "dataDisks": []
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(variables('nicNamePrefix'),copyindex()))]"
+            }
+          ]
+        },
+        "diagnosticsProfile": {
+          "bootDiagnostics": {
+            "enabled": "true",
+            "storageUri": "[concat('http://',variables('storageAccountName'),'.blob.core.windows.net')]"
+          }
+        }
+      },
+      "resources": [
+        {
+          "name": "[concat('DSCInit', copyIndex())]",
+          "type": "extensions",
+          "location": "[resourceGroup().location]",
+          "apiVersion": "2015-06-15",
+          "dependsOn": [
+            "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('vmNamePrefix'), copyindex()))]"
+          ],
+          "tags": {
+            "displayName": "[concat('DSCInit', copyIndex())]"
+          },
+          "properties": {
+            "publisher": "Microsoft.Compute",
+            "type": "CustomScriptExtension",
+            "typeHandlerVersion": "1.4",
+            "autoUpgradeMinorVersion": true,
+            "settings": {
+              "fileUris": [
+                "[concat(variables('DSCInitScriptFolder') , variables('DSCInitScriptFileName'))]"
+              ],
+              "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeType:', copyindex()) ,' -HgsServerPrimaryIPAddress:10.0.0.4',  concat(' -HgsServerPrimaryAdminUsername:', parameters('adminUsername')), concat(' -HgsServerPrimaryAdminPassword:', parameters('adminPassword')), concat(' -HttpsCertificateName:', reference(variables('publicIPAddressName')).dnsSettings.fqdn) )]"
+            }
+          }
+        }
       ]
     }
+  ]
+}
