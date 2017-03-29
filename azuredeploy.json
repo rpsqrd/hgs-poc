@@ -30,6 +30,8 @@
 
     "vmSize": "Standard_D1_V2",
     "availabilitySetName": "HGS-AvailabilitySet",
+    "availabilitySetPlatformFaultDomainCount": 2,
+    "availabilitySetPlatformUpdateDomainCount": 2,
     "addressPrefix": "10.0.0.0/16",
     "subnetName": "Subnet-1",
     "subnetPrefix": "10.0.0.0/24",
@@ -54,6 +56,8 @@
       "apiVersion": "2016-04-30-preview",
       "location": "[resourceGroup().location]",
       "properties": {
+        "platformFaultDomainCount": "[variables('availabilitySetPlatformFaultDomainCount')]",
+        "platformUpdateDomainCount": "[variables('availabilitySetPlatformUpdateDomainCount')]",
         "managed": true
       }
     },
