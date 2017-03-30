@@ -47,7 +47,7 @@
         "frontEndIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/loadBalancerFrontend')]",
         "DSCInitScriptFolder": "https://raw.githubusercontent.com/rpsqrd/HGS-POC/master/scripts/",
         "DSCInitScriptFileName": "dscinit.ps1",
-        "CloudWitnessStorageName": "[concat('HGSCW', uniqueString(subscription().subscriptionId))]"
+        "CloudWitnessStorageName": "[concat('witness', uniqueString(subscription().subscriptionId))]"
     },
     "resources": [
         {
