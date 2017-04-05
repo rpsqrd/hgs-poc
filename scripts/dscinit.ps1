@@ -77,9 +77,12 @@ Configuration xHGSCommon
         IncludeAllSubFeature = $true
         Ensure = "Present"
     }
-    WindowsFeature WebMgmtTools {
-        Name = "Web-Mgmt-Tools"
-        IncludeAllSubFeature = $true
+    WindowsFeature WebMgmtConsole {
+        Name = "Web-Mgmt-Console"
+        Ensure = "Present"
+    }
+    WindowsFeature WebMgmtScripts{
+        Name = "Web-Scripting-Tools"
         Ensure = "Present"
     }
     WindowsFeature RSATADTools {
@@ -331,11 +334,11 @@ Configuration xHGS
 
             GetScript = {
                 $result = $null
-                [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.Windows.HgsStore")
+                [System.Reflection.Assembly]::LoadWithPartialName("Microsoft.Windows.HgsStore") | Out-Null
                 $store = $null
                 $result = [Microsoft.Windows.HgsStore.HgsReplicatedStore]::TryOpenStore("Attestation", [ref]$store)
                 return  @{
-                    Result = $result
+                    Result = $result.ToString()
                 }
             }
 
@@ -371,7 +374,7 @@ Configuration xHGS
             Message = "AD Ready on : $Node.HgsServerPrimaryIPAddress "
         }
 
-        script ChangeDNSAddress {
+        Script ChangeDNSAddress {
             DependsOn = '[WaitForAny]WaitForADOnPrimaryToReady'
             SetScript = {
                 write-verbose "HgsServerPrimaryIPAddress: $($using:Node.HgsServerPrimaryIPAddress)"
@@ -390,7 +393,7 @@ Configuration xHGS
                 $netipconfig = Get-NetIPConfiguration |? {$_.IPv4DefaultGateway -ne $null } | Select-Object -First 1
                 Write-Verbose $netipconfig
                 $dnsclientAddress = get-DNSClientServerAddress -InterfaceIndex $($netipconfig.InterfaceIndex) |? {$_.AddressFamily -eq "2"}
-                return $dnsclientAddress
+                return @{ Result = $dnsclientAddress.ToString() }
             }
         }
 
@@ -432,7 +435,7 @@ Configuration xHGS
             GetScript = {
                 $result = (Get-ADDomain -Current LocalComputer)
                 return  @{
-                    Result = $result
+                    Result = $result.DistinguishedName
                 }
             }
         } #End of Intall HgsServer
@@ -603,23 +606,8 @@ Configuration xHGS
             }
 
             GetScript = {
-                $result = $true
-                $Urls = @("http://localhost/Attestation/getinfo", "http://localhost/KeyProtection/service/metadata/2014-07/metadata.xml")
-
-                foreach ($url in $Urls) {
-                    try {
-                        $response = [System.Net.WebRequest]::Create($url).GetResponse();
-                        Write-verbose ($url + "Response Status Code: " + $response.StatusCode)
-
-                        if ($response.StatusCode -ne [System.Net.HttpStatusCode]::OK) {
-                            $result = $false
-                        }
-                    }
-                    catch {
-                        $result = $false
-                    }
-                }
-                return $result
+                $result = Get-HgsServer
+                return @{ Result = $result.KeyProtectionUrl[0].DnsSafeHost }
             }
         } #End of Initialize-HgsServer
 
