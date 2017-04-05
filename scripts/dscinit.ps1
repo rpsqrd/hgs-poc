@@ -110,7 +110,7 @@ Configuration xHGS
     Import-DscResource -ModuleName PSDesiredStateConfiguration
 
     ### Setup primary node
-    Node $AllNodes.where {$_.Role -eq "FirstNode"}.NodeName
+    Node $AllNodes.Where{$_.Role -eq "FirstNode"}.NodeName
     {
         xHGSCommon CommonActivityFirstNode {
         }
@@ -347,13 +347,13 @@ Configuration xHGS
             Key = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\HGS\KPS"
             ValueName = "Protocol"
             ValueData = "Http"
-            ValueType = "REG_SZ"
+            ValueType = "String"
             Force = $true
         }
     } #End of Node
 
     ### Setup Additional Node
-    Node $AllNodes.where {$_.Role -eq "SecondNode"}.NodeName
+    Node $AllNodes.Where{$_.Role -eq "SecondNode"}.NodeName
     {
         xHGSCommon CommonActivitySecondNode {
         }
@@ -629,7 +629,7 @@ Configuration xHGS
             Key = "HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\HGS\KPS"
             ValueName = "Protocol"
             ValueData = "Http"
-            ValueType = "REG_SZ"
+            ValueType = "String"
             Force = $true
         }
     }#End of Node
