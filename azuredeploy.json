@@ -344,7 +344,7 @@
                     "adminUsername": "[parameters('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
                     "windowsConfiguration": {
-                        "provisionVMAgent": "true",
+                        "provisionVMAgent": true,
                         "winRM": {
                             "listeners": [
                                 {
@@ -352,7 +352,7 @@
                                 }
                             ]
                         },
-                        "enableAutomaticUpdates": "true"
+                        "enableAutomaticUpdates": true
                     }
                 },
                 "storageProfile": {
