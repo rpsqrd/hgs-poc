@@ -28,7 +28,7 @@
         "publicIPAddressName": "HGS-PublicIP",
         "vnetName": "HGS-VNET",
         "vmDiskNamePrefix": "HGS-DISK",
-        "vmSize": "Standard_D1_V2",
+        "vmSize": "Standard_DS1_V2",
         "availabilitySetName": "HGS-AvailabilitySet",
         "availabilitySetPlatformFaultDomainCount": 2,
         "availabilitySetPlatformUpdateDomainCount": 2,
