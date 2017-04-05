@@ -366,7 +366,7 @@
                         "name": "[concat(variables('vmDiskNamePrefix'), copyIndex())]",
                         "createOption": "FromImage",
                         "managedDisk": {
-                            "storageAccountType": "Standard_LRS"
+                            "storageAccountType": "Premium_LRS"
                         }
                     },
                     "dataDisks": []
