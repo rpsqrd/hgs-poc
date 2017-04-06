@@ -189,35 +189,35 @@ Configuration xHGS
                     $_encryptioncertname = "$($using:Node.EncryptionCertificateName)"
                     $_signingcertname = "$($using:Node.SigningCertificateName)"
                     Write-verbose "Generating Certificate "
-                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | where {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
+                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | Where-Object {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
                         $httpsCert = New-SelfSignedCertificate -DnsName $_Httpscertname -CertStoreLocation Cert:\LocalMachine\my
                         Export-PfxCertificate -Cert $httpsCert -Password $_HttpsCertificatePassword -FilePath "$($using:Node.HttpsCertificatePath)"
                         $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\Root -FilePath "$($using:Node.HttpsCertificatePath)" -Password $_HttpsCertificatePassword
                     }
 
-                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | where {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
+                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
                         $encryptionCert = New-SelfSignedCertificate -DnsName $_encryptioncertname -CertStoreLocation Cert:\LocalMachine\my
                         Export-PfxCertificate -Cert $encryptionCert -Password $_EncryptionCertificatePassword -FilePath "$($using:Node.EncryptionCertificatePath)"
                     }
 
-                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | where {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
+                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
                         $signingCert = New-SelfSignedCertificate -DnsName $_signingcertname -CertStoreLocation Cert:\LocalMachine\my
                         Export-PfxCertificate -Cert $signingCert -Password $_SigningCertificatePassword -FilePath "$($using:Node.SigningCertificatePath)"
                     }
                 }
                 else {
                     ### https cert need be imported to root store
-                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | where {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
+                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | Where-Object {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
 
                         $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath "$($using:Node.HttpsCertificatePath)" -Password $_HttpsCertificatePassword
                         $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\Root -FilePath "$($using:Node.HttpsCertificatePath)" -Password $_HttpsCertificatePassword
                     }
 
-                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | where {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
+                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
                         $encryptionCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath "$($using:Node.EncryptionCertificatePath)" -Password $_EncryptionCertificatePassword
                     }
 
-                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | where {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
+                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
                         $signingCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath "$($using:Node.SigningCertificatePath)" -Password $_SigningCertificatePassword
                     }
                 }
@@ -378,21 +378,21 @@ Configuration xHGS
             DependsOn = '[WaitForAny]WaitForADOnPrimaryToReady'
             SetScript = {
                 write-verbose "HgsServerPrimaryIPAddress: $($using:Node.HgsServerPrimaryIPAddress)"
-                $netipconfig = Get-NetIPConfiguration |? {$_.IPv4DefaultGateway -ne $null } | Select-Object -First 1
-                $dnsclientAddress = get-DNSClientServerAddress -InterfaceIndex $netipconfig.InterfaceIndex |? {$_.AddressFamily -eq "2"}
+                $netipconfig = Get-NetIPConfiguration | Where-Object {$_.IPv4DefaultGateway -ne $null } | Select-Object -First 1
+                $dnsclientAddress = get-DNSClientServerAddress -InterfaceIndex $netipconfig.InterfaceIndex | Where-Object {$_.AddressFamily -eq "2"}
                 Set-DnsClientServerAddress -InterfaceIndex $dnsclientAddress.InterfaceIndex -ServerAddresses "$($using:Node.HgsServerPrimaryIPAddress)"
             }
 
             TestScript = {
-                $netipconfig = Get-NetIPConfiguration |? {$_.IPv4DefaultGateway -ne $null } | Select-Object -First 1
-                $dnsclientAddress = get-DNSClientServerAddress -InterfaceIndex $netipconfig.InterfaceIndex |? {$_.AddressFamily -eq "2"}
+                $netipconfig = Get-NetIPConfiguration | Where-Object {$_.IPv4DefaultGateway -ne $null } | Select-Object -First 1
+                $dnsclientAddress = get-DNSClientServerAddress -InterfaceIndex $netipconfig.InterfaceIndex | Where-Object {$_.AddressFamily -eq "2"}
                 return  $dnsclientAddress.ServerAddresses.Contains("$($using:Node.HgsServerPrimaryIPAddress)")
             }
 
             GetScript = {
-                $netipconfig = Get-NetIPConfiguration |? {$_.IPv4DefaultGateway -ne $null } | Select-Object -First 1
+                $netipconfig = Get-NetIPConfiguration | Where-Object {$_.IPv4DefaultGateway -ne $null } | Select-Object -First 1
                 Write-Verbose $netipconfig
-                $dnsclientAddress = get-DNSClientServerAddress -InterfaceIndex $($netipconfig.InterfaceIndex) |? {$_.AddressFamily -eq "2"}
+                $dnsclientAddress = get-DNSClientServerAddress -InterfaceIndex $($netipconfig.InterfaceIndex) | Where-Object {$_.AddressFamily -eq "2"}
                 return @{ Result = $dnsclientAddress.ToString() }
             }
         }
@@ -476,14 +476,14 @@ Configuration xHGS
                 $_EncryptionCertificatePassword = ConvertTo-SecureString -AsPlainText "$($using:Node.EncryptionCertificatePassword)" -Force
                 $_SigningCertificatePassword = ConvertTo-SecureString -AsPlainText "$($using:Node.SigningCertificatePassword)" -Force
                 if ([boolean]::Parse("$($using:Node.GenerateSelfSignedCertificate)")) {
-                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | where {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
+                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | Where-Object {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
                         ### https cert need be imported to root store
                         $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath (([string]::Format('\\{0}\{1}', $($using:Node.HgsServerPrimaryIPAddress), $($using:Node.HttpsCertificatePath))).replace(":", "$")) -Password $_HttpsCertificatePassword
                         $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\root -FilePath (([string]::Format('\\{0}\{1}', $($using:Node.HgsServerPrimaryIPAddress), $($using:Node.HttpsCertificatePath))).replace(":", "$")) -Password $_HttpsCertificatePassword
                     }
                 }
                 else {
-                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | where {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
+                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | Where-Object {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
                         ### https cert need be imported to root store
                         $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath $($using:Node.HttpsCertificatePath) -Password $_HttpsCertificatePassword
                         $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\root -FilePath $($using:Node.HttpsCertificatePath) -Password $_HttpsCertificatePassword
@@ -508,20 +508,20 @@ Configuration xHGS
                                                 -Confirm:$false -Verbose
 
                 if ([boolean]::Parse("$($using:Node.GenerateSelfSignedCertificate)")) {
-                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | where {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
+                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
                         $encryptionCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\My -FilePath (([string]::Format('\\{0}\{1}', $($using:Node.HgsServerPrimaryIPAddress), $($using:Node.EncryptionCertificatePath))).replace(":", "$")) -Password $_EncryptionCertificatePassword
                     }
 
-                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | where {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
+                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
                         $signingCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\My -FilePath (([string]::Format('\\{0}\{1}', $($using:Node.HgsServerPrimaryIPAddress), $($using:Node.SigningCertificatePath))).replace(":", "$")) -Password $_SigningCertificatePassword
                     }
                 }
                 else {
-                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | where {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
+                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
                         $encryptionCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath "$($using:Node.EncryptionCertificatePath)" -Password $_EncryptionCertificatePassword
                     }
 
-                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | where {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
+                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
                         $signingCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath "$($using:Node.SigningCertificatePath)" -Password $_SigningCertificatePassword
                     }
                 }
