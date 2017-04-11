@@ -343,9 +343,8 @@
             "sku": {
                 "name": "Standard_LRS"
             },
-            "kind": "BlobStorage",
+            "kind": "Storage",
             "properties": {
-                "accessTier": "Hot",
                 "encryption": {
                     "services": {
                         "blob": {
