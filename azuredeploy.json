@@ -2,26 +2,64 @@
     "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json",
     "contentVersion": "1.0.0.0",
     "parameters": {
-        "adminUsername": {
-            "type": "string",
-            "metadata": {
-                "description": "Admin username"
-            }
-        },
         "adminPassword": {
             "type": "securestring",
             "metadata": {
                 "description": "Admin password"
             }
         },
-        "forwardName": {
+        "serviceDnsName": {
             "type": "string",
             "metadata": {
-                "description": "Unique DNS name"
+                "description": "DNS prefix for the region's cloud app service. (e.g. 'microsoft' => 'microsoft.westus2.cloudapp.azure.com')"
+            }
+        },
+        "keyVaultName": {
+            "type": "string",
+            "metadata": {
+                "description": "Name of the Azure Key Vault instance containing the guardian and SSL certificates"
+            }
+        },
+        "sslCertificateUri": {
+            "type": "string",
+            "metadata": {
+                "description": "A versioned Azure KeyVault secret URI for the SSL certificate"
+            }
+        },
+        "sslCertificateThumbprint": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The thumbprint of the SSL certificate."
+            }
+        },
+        "guardianEncryptionCertificateUri": {
+            "type": "string",
+            "metadata": {
+                "description": "A versioned Azure KeyVault secret URI for the HGS default guardian's encryption certificate."
+            }
+        },
+        "guardianEncryptionCertificateThumbprint": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The thumbprint of the HGS default guardian's encryption certificate."
+            }
+        },
+        "guardianSigningCertificateUri": {
+            "type": "string",
+            "metadata": {
+                "description": "A versioned Azure KeyVault secret URI for the HGS default guardian's signing certificate."
+            }
+        },
+        "guardianSigningCertificateThumbprint": {
+            "type": "securestring",
+            "metadata": {
+                "description": "The thumbprint of the HGS default guardian's signing certificate."
             }
         }
     },
     "variables": {
+        "keyVaultResourceGroup": "HGS-as-IaaS-Shared-Assets",
+        "adminUsername": "hgsadmin",
         "vmNamePrefix": "HGS-NODE",
         "lbName": "HGS-LoadBalancer",
         "nicNamePrefix": "HGS-NIC",
@@ -69,7 +107,7 @@
             "properties": {
                 "publicIPAllocationMethod": "[variables('publicIPAddressType')]",
                 "dnsSettings": {
-                    "domainNameLabel": "[parameters('forwardName')]"
+                    "domainNameLabel": "[parameters('serviceDnsName')]"
                 }
             }
         },
@@ -188,7 +226,7 @@
                             "backendPort": 80,
                             "idleTimeoutInMinutes": 15
                         },
-                        "Name": "[concat(variables('lbrulePrefix'), '80')]"
+                        "name": "[concat(variables('lbrulePrefix'), '80')]"
                     },
                     {
                         "properties": {
@@ -206,7 +244,7 @@
                             "backendPort": 443,
                             "idleTimeoutInMinutes": 15
                         },
-                        "Name": "[concat(variables('lbrulePrefix'), '443')]"
+                        "name": "[concat(variables('lbrulePrefix'), '443')]"
                     }
                 ],
                 "probes": [
@@ -341,7 +379,7 @@
                 },
                 "osProfile": {
                     "computerName": "[concat(variables('vmNamePrefix'), copyIndex())]",
-                    "adminUsername": "[parameters('adminUsername')]",
+                    "adminUsername": "[variables('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
                     "windowsConfiguration": {
                         "provisionVMAgent": true,
@@ -353,7 +391,28 @@
                             ]
                         },
                         "enableAutomaticUpdates": true
-                    }
+                    },
+                    "secrets": [
+                        {
+                            "sourceVault": {
+                                "id": "[resourceId(variables('keyVaultResourceGroup'), 'Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+                            },
+                            "vaultCertificates": [
+                                {
+                                    "certificateUrl": "[parameters('sslCertificateUri')]",
+                                    "certificateStore": "My"
+                                },
+                                {
+                                    "certificateUrl": "[parameters('guardianEncryptionCertificateUri')]",
+                                    "certificateStore": "My"
+                                },
+                                {
+                                    "certificateUrl": "[parameters('guardianSigningCertificateUri')]",
+                                    "certificateStore": "My"
+                                }
+                            ]
+                        }
+                    ]
                 },
                 "storageProfile": {
                     "imageReference": {
@@ -400,7 +459,7 @@
                             "fileUris": [
                                 "[concat(variables('DSCInitScriptFolder') , variables('DSCInitScriptFileName'))]"
                             ],
-                            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeType:', copyindex()) ,' -HgsServerPrimaryIPAddress:10.0.0.4',  concat(' -HgsServerPrimaryAdminUsername:', parameters('adminUsername')), concat(' -HgsServerPrimaryAdminPassword:', parameters('adminPassword')), concat(' -HttpsCertificateName:', reference(variables('publicIPAddressName')).dnsSettings.fqdn) )]"
+                            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeType:', copyindex()) ,' -HgsServerPrimaryIPAddress 10.0.0.4',  concat(' -HgsServerPrimaryAdminUsername ', variables('adminUsername')), concat(' -HgsServerPrimaryAdminPassword ', parameters('adminPassword')), concat(' -SslCertificateThumbprint ', parameters('sslCertificateThumbprint')), concat(' -EncryptionCertificateThumbprint ', parameters('guardianEncryptionCertificateThumbprint')), concat(' -SigningCertificateThumbprint ', parameters('guardianSigningCertificateThumbprint')))]"
                         }
                     }
                 }
