@@ -580,7 +580,7 @@ $ConfigData = @{
             HgsServerPrimaryAdminPassword = $HgsServerPrimaryAdminPassword
             SleepTime = 5
             MaxRetries = 60
-            LogFolder = (Get-CimInstance Win32_OperatingSystem).WindowsDirectory + "\Logs\HgsServer"
+            LogFolder = (Join-Path (Get-CimInstance Win32_OperatingSystem).WindowsDirectory "\Logs\HgsServer")
         }
     );
     NonNodeData = ""
@@ -588,16 +588,16 @@ $ConfigData = @{
 
 if ($NodeType -eq '0') {
     $_firstnode = @{
-        NodeName = "$NodeName";
-        Role = "FirstNode" ;
+        NodeName = $env:COMPUTERNAME
+        Role = "FirstNode"
     }
     $ConfigData.AllNodes += $_firstnode
 }
 
 if ($NodeType -ne '0') {
     $_secondnode = @{
-        NodeName = $NodeName;
-        Role = "SecondNode" ;
+        NodeName = $env:COMPUTERNAME
+        Role = "SecondNode"
     }
     $ConfigData.AllNodes += $_secondnode
 }
@@ -605,6 +605,6 @@ if ($NodeType -ne '0') {
 xHGS -ConfigurationData $ConfigData
 
 ### Force refresh local machine configuration
-Set-DscLocalConfigurationManager -Path .\xHGS  -Force -Verbose -ComputerName $NodeName
+Set-DscLocalConfigurationManager -Path .\xHGS  -Force -Verbose -ComputerName $env:COMPUTERNAME
 
-Start-DscConfiguration -Verbose -wait -Path .\xHGS -Force -ComputerName $NodeName
+Start-DscConfiguration -Verbose -wait -Path .\xHGS -Force -ComputerName $env:COMPUTERNAME
