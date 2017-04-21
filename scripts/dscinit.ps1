@@ -1,6 +1,6 @@
 param(
     [Parameter(Mandatory = $false)]
-    [string] $NodeType = '0',
+    [string] $NodeNumber = '1',
 
     [Parameter(Mandatory = $false)]
     [string] $HgsServerPrimaryIPAddress = "10.0.0.1",
@@ -98,14 +98,14 @@ Configuration xHGS
         }
 
         Log CreatingNewDomain {
-            Message = "Creating New Domain";
+            Message = "Creating New Domain"
             DependsOn = '[xHGSCommon]CommonActivityFirstNode'
         }
 
         Script InstallHGSServer {
             SetScript = {
                 start-transcript -path ($using:Node.LogFolder + "\install1sthgsserver.log") -Append -Force
-                write-verbose "HgsDomainName: $($using:Node.HgsDomainName)";
+                write-verbose "HgsDomainName: $($using:Node.HgsDomainName)"
                 Install-HgsServer -HgsDomainName  $($using:Node.HgsDomainName) -SafeModeAdministratorPassword (ConvertTo-SecureString $($using:Node.SafeModeAdministratorPassword) -AsPlainText -Force -Verbose)
                 ### request reboot machine
                 $global:DSCMachineStatus = 1
@@ -152,7 +152,7 @@ Configuration xHGS
                 Clear-HgsServer -Force -Confirm:$false
 
 
-                write-verbose "Initializing HgsServer : $($using:Node.HgsDomainName)";
+                write-verbose "Initializing HgsServer : $($using:Node.HgsDomainName)"
 
                 if (-not (Get-PSDrive -Name AD -ErrorAction Ignore)) {
                     New-PSDrive -Name AD -PSProvider ActiveDirectory -Root //RootDSE/
@@ -197,11 +197,11 @@ Configuration xHGS
                 Write-Verbose "Checking HGS web service availability."
                 while ($retryAttempts -lt $using:Node.MaxRetries) {
                     try {
-                        $attResponse = [System.Net.WebRequest]::Create($attestationURL).GetResponse();
+                        $attResponse = [System.Net.WebRequest]::Create($attestationURL).GetResponse()
                         Write-verbose ($attestationURL + " - Response Status Code: " + $attResponse.StatusCode)
                         $attGood = $attResponse.StatusCode -eq [System.Net.HttpStatusCode]::OK
 
-                        $kpsResponse = [System.Net.WebRequest]::Create($kpsURL).GetResponse();
+                        $kpsResponse = [System.Net.WebRequest]::Create($kpsURL).GetResponse()
                         Write-verbose ($kpsURL + " - Response Status Code: " + $kpsResponse.StatusCode)
                         $kpsGood = $kpsResponse.StatusCode -eq [System.Net.HttpStatusCode]::OK
                         
@@ -340,7 +340,7 @@ Configuration xHGS
 
             SetScript = {
                 start-transcript -path ($using:Node.LogFolder + "\install2ndhgsserver.log") -Append -Force
-                write-verbose "HgsDomainName: $($using:Node.HgsDomainName)";
+                write-verbose "HgsDomainName: $($using:Node.HgsDomainName)"
                 Install-HgsServer  -HgsDomainName  $($using:Node.HgsDomainName)  `
                                         -SafeModeAdministratorPassword (ConvertTo-SecureString $($using:Node.SafeModeAdministratorPassword) -AsPlainText -Force) `
                                         -HgsDomainCredential (new-object -typename System.Management.Automation.PSCredential -argumentlist "$($using:Node.HgsDomainName)\$($using:Node.HgsServerPrimaryAdminUsername)", (ConvertTo-SecureString ($($using:Node.HgsServerPrimaryAdminPassword )) -AsPlainText -Force))
@@ -509,7 +509,7 @@ Configuration xHGS
                 Write-Verbose "Checking HGS web service availability"
                 foreach ($url in $urls) {
                     try {
-                        $response = [System.Net.WebRequest]::Create($url).GetResponse();
+                        $response = [System.Net.WebRequest]::Create($url).GetResponse()
                         Write-verbose ($url + " - Response Status Code: " + $response.StatusCode)
 
                         if ($response.StatusCode -ne [System.Net.HttpStatusCode]::OK) {
@@ -527,7 +527,7 @@ Configuration xHGS
                     
                     foreach ($url in $urls) {
                         try {
-                            $response = [System.Net.WebRequest]::Create($url).GetResponse();
+                            $response = [System.Net.WebRequest]::Create($url).GetResponse()
                             Write-verbose ($url + " - Response Status Code: " + $response.StatusCode)
 
                             if ($response.StatusCode -ne [System.Net.HttpStatusCode]::OK) {
@@ -581,11 +581,11 @@ $ConfigData = @{
             MaxRetries = 60
             LogFolder = (Join-Path (Get-CimInstance Win32_OperatingSystem).WindowsDirectory "\Logs\HgsServer")
         }
-    );
+    )
     NonNodeData = ""
 }
 
-if ($NodeType -eq '0') {
+if ($NodeNumber -eq '1') {
     $_firstnode = @{
         NodeName = $env:COMPUTERNAME
         Role = "FirstNode"
@@ -593,7 +593,7 @@ if ($NodeType -eq '0') {
     $ConfigData.AllNodes += $_firstnode
 }
 
-if ($NodeType -ne '0') {
+if ($NodeNumber -ne '1') {
     $_secondnode = @{
         NodeName = $env:COMPUTERNAME
         Role = "SecondNode"

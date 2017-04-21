@@ -141,7 +141,7 @@
         {
             "apiVersion": "2015-06-15",
             "type": "Microsoft.Network/networkInterfaces",
-            "name": "[concat(variables('nicNamePrefix'), copyindex())]",
+            "name": "[concat(variables('nicNamePrefix'), copyindex(1))]",
             "location": "[resourceGroup().location]",
             "copy": {
                 "name": "nicLoop",
@@ -150,9 +150,9 @@
             "dependsOn": [
                 "[concat('Microsoft.Network/virtualNetworks/', variables('vnetName'))]",
                 "[concat('Microsoft.Network/loadBalancers/', variables('lbName'))]",
-                "[concat('Microsoft.Network/loadBalancers/', variables('lbName'), '/inboundNatRules/', 'RDP-VM', copyIndex())]",
-                "[concat('Microsoft.Network/loadBalancers/', variables('lbName'), '/inboundNatRules/', 'WINRM-VM-HTTP', copyIndex())]",
-                "[concat('Microsoft.Network/loadBalancers/', variables('lbName'), '/inboundNatRules/', 'WINRM-VM-HTTPS', copyIndex())]"
+                "[concat('Microsoft.Network/loadBalancers/', variables('lbName'), '/inboundNatRules/', 'RDP-VM', copyindex(1))]",
+                "[concat('Microsoft.Network/loadBalancers/', variables('lbName'), '/inboundNatRules/', 'WINRM-VM-HTTP', copyindex(1))]",
+                "[concat('Microsoft.Network/loadBalancers/', variables('lbName'), '/inboundNatRules/', 'WINRM-VM-HTTPS', copyindex(1))]"
             ],
             "properties": {
                 "ipConfigurations": [
@@ -171,13 +171,13 @@
                             ],
                             "loadBalancerInboundNatRules": [
                                 {
-                                    "id": "[concat(variables('lbID'),'/inboundNatRules/RDP-VM', copyindex())]"
+                                    "id": "[concat(variables('lbID'),'/inboundNatRules/RDP-VM', copyindex(1))]"
                                 },
                                 {
-                                    "id": "[concat(variables('lbID'),'/inboundNatRules/WINRM-VM-HTTP', copyindex())]"
+                                    "id": "[concat(variables('lbID'),'/inboundNatRules/WINRM-VM-HTTP', copyindex(1))]"
                                 },
                                 {
-                                    "id": "[concat(variables('lbID'),'/inboundNatRules/WINRM-VM-HTTPS', copyindex())]"
+                                    "id": "[concat(variables('lbID'),'/inboundNatRules/WINRM-VM-HTTPS', copyindex(1))]"
                                 }
                             ]
                         }
@@ -245,7 +245,7 @@
         {
             "apiVersion": "2015-06-15",
             "type": "Microsoft.Network/loadBalancers/inboundNatRules",
-            "name": "[concat(variables('lbName'), '/', 'RDP-VM', copyIndex())]",
+            "name": "[concat(variables('lbName'), '/', 'RDP-VM', copyindex(1))]",
             "location": "[resourceGroup().location]",
             "copy": {
                 "name": "lbNatLoop",
@@ -267,7 +267,7 @@
         {
             "apiVersion": "2015-06-15",
             "type": "Microsoft.Network/loadBalancers/inboundNatRules",
-            "name": "[concat(variables('lbName'), '/', 'WINRM-VM-HTTP', copyIndex())]",
+            "name": "[concat(variables('lbName'), '/', 'WINRM-VM-HTTP', copyindex(1))]",
             "location": "[resourceGroup().location]",
             "copy": {
                 "name": "lbNatLoop",
@@ -289,7 +289,7 @@
         {
             "apiVersion": "2015-06-15",
             "type": "Microsoft.Network/loadBalancers/inboundNatRules",
-            "name": "[concat(variables('lbName'), '/', 'WINRM-VM-HTTPS', copyIndex())]",
+            "name": "[concat(variables('lbName'), '/', 'WINRM-VM-HTTPS', copyindex(1))]",
             "location": "[resourceGroup().location]",
             "copy": {
                 "name": "lbNatLoop",
@@ -332,14 +332,14 @@
         {
             "apiVersion": "2016-04-30-preview",
             "type": "Microsoft.Compute/virtualMachines",
-            "name": "[concat(variables('vmNamePrefix'), copyindex())]",
+            "name": "[concat(variables('vmNamePrefix'), copyindex(1))]",
             "copy": {
                 "name": "virtualMachineLoop",
                 "count": "[variables('numberOfInstances')]"
             },
             "location": "[resourceGroup().location]",
             "dependsOn": [
-                "[concat('Microsoft.Network/networkInterfaces/',variables('nicNamePrefix'), copyindex())]",
+                "[concat('Microsoft.Network/networkInterfaces/',variables('nicNamePrefix'), copyindex(1))]",
                 "[concat('Microsoft.Compute/availabilitySets/', variables('availabilitySetName'))]"
             ],
             "properties": {
@@ -350,7 +350,7 @@
                     "vmSize": "[variables('vmSize')]"
                 },
                 "osProfile": {
-                    "computerName": "[concat(variables('vmNamePrefix'), copyIndex())]",
+                    "computerName": "[concat(variables('vmNamePrefix'), copyindex(1))]",
                     "adminUsername": "[variables('adminUsername')]",
                     "adminPassword": "[parameters('adminPassword')]",
                     "windowsConfiguration": {
@@ -394,7 +394,7 @@
                         "version": "latest"
                     },
                     "osDisk": {
-                        "name": "[concat(variables('vmDiskNamePrefix'), copyIndex())]",
+                        "name": "[concat(variables('vmDiskNamePrefix'), copyindex(1))]",
                         "createOption": "FromImage",
                         "managedDisk": {
                             "storageAccountType": "Premium_LRS"
@@ -405,22 +405,22 @@
                 "networkProfile": {
                     "networkInterfaces": [
                         {
-                            "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(variables('nicNamePrefix'),copyindex()))]"
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(variables('nicNamePrefix'),copyindex(1)))]"
                         }
                     ]
                 }
             },
             "resources": [
                 {
-                    "name": "[concat('HGS-Configuration-', copyIndex())]",
+                    "name": "[concat('HGS-Configuration', copyindex(1))]",
                     "type": "extensions",
                     "location": "[resourceGroup().location]",
                     "apiVersion": "2015-06-15",
                     "dependsOn": [
-                        "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('vmNamePrefix'), copyindex()))]"
+                        "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('vmNamePrefix'), copyindex(1)))]"
                     ],
                     "tags": {
-                        "displayName": "[concat('DSCInit', copyIndex())]"
+                        "displayName": "[concat('HGS-Configuration', copyindex(1))]"
                     },
                     "properties": {
                         "publisher": "Microsoft.Compute",
@@ -431,7 +431,7 @@
                             "fileUris": [
                                 "[concat(variables('DSCInitScriptFolder') , variables('DSCInitScriptFileName'))]"
                             ],
-                            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeType:', copyindex()) ,' -HgsServerPrimaryIPAddress 10.0.0.1',  concat(' -HgsServerPrimaryAdminUsername ', variables('adminUsername')), concat(' -HgsServerPrimaryAdminPassword ', parameters('adminPassword')), concat(' -SslCertificateThumbprint ', parameters('sslCertificateThumbprint')), concat(' -EncryptionCertificateThumbprint ', parameters('guardianEncryptionCertificateThumbprint')), concat(' -SigningCertificateThumbprint ', parameters('guardianSigningCertificateThumbprint')))]"
+                            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeNumber:', copyindex(1)) ,' -HgsServerPrimaryIPAddress 10.0.0.1',  concat(' -HgsServerPrimaryAdminUsername ', variables('adminUsername')), concat(' -HgsServerPrimaryAdminPassword ', parameters('adminPassword')), concat(' -SslCertificateThumbprint ', parameters('sslCertificateThumbprint')), concat(' -EncryptionCertificateThumbprint ', parameters('guardianEncryptionCertificateThumbprint')), concat(' -SigningCertificateThumbprint ', parameters('guardianSigningCertificateThumbprint')))]"
                         }
                     }
                 }
