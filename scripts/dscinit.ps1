@@ -3,7 +3,7 @@ param(
     [string] $NodeType = '0',
 
     [Parameter(Mandatory = $false)]
-    [string] $HgsServerPrimaryIPAddress = "10.0.0.4",
+    [string] $HgsServerPrimaryIPAddress = "10.0.0.1",
 
     [Parameter(Mandatory = $false)]
     [string] $HgsServerPrimaryAdminUsername = "hgsadmin",
@@ -163,7 +163,7 @@ Configuration xHGS
                                         -SigningCertificateThumbprint $using:Node.SigningCertificateThumbprint `
                                         -Verbose
                 Set-HgsServer -Http -Https `
-                                        -HttpsCertificateThumbprint $using:Node.HttpsCertificateThumbprint `
+                                        -HttpsCertificateThumbprint $using:Node.SslCertificateThumbprint `
                                         -Confirm:$false -Verbose
 
                 # Grant the gMSA rights to the certificate private keys
@@ -178,11 +178,12 @@ Configuration xHGS
             }
 
             TestScript = {
-                $urls = @("http://localhost/Attestation/getinfo", "http://localhost/KeyProtection/service/metadata/2014-07/metadata.xml")
+                $attestationURL = "http://localhost/Attestation/getinfo"
+                $kpsURL = "http://localhost/KeyProtection/service/metadata/2014-07/metadata.xml"
 
                 # First, check if the KPS Web App is even registered
                 if (-not (Get-WebApplication -Name KeyProtection -ErrorAction Ignore) -or -not (Get-WebApplication -Name Attestation -ErrorAction Ignore)) {
-                    Write-Verbose "KPS Web App not registered, HGS is not initialized"
+                    Write-Verbose "KPS and/or attestation web apps are not registered. HGS is not initialized."
                     return $false
                 }
 
@@ -191,40 +192,38 @@ Configuration xHGS
                 $retryAttempts = 0
 
                 Write-Verbose "Checking HGS web service availability"
-                foreach ($url in $urls) {
-                    try {
-                        $response = [System.Net.WebRequest]::Create($url).GetResponse();
-                        Write-verbose ($url + " - Response Status Code: " + $response.StatusCode)
-
-                        if ($response.StatusCode -ne [System.Net.HttpStatusCode]::OK) {
-                            $result = $false
-                        }
-                    }
-                    catch {
-                        $result = $false
-                    }
-                }
-
-                while ($result -eq $false -and $retryAttempts -lt $using:Node.MaxRetries) {
-                    Write-Verbose ("Could not retrieve domain name. Retrying in 5 seconds. (Attempt {0}/{1})" -f ++$retryAttempts, $using:Node.MaxRetries)
-                    Start-Sleep -Seconds $using:Node.SleepTime
                     
-                    foreach ($url in $urls) {
-                        try {
-                            $response = [System.Net.WebRequest]::Create($url).GetResponse();
-                            Write-verbose ($url + " - Response Status Code: " + $response.StatusCode)
 
-                            if ($response.StatusCode -ne [System.Net.HttpStatusCode]::OK) {
-                                $result = $false
-                            }
+                Write-Verbose "Checking HGS web service availability."
+                while ($retryAttempts -lt $using:Node.MaxRetries) {
+                    try {
+                        $attResponse = [System.Net.WebRequest]::Create($attestationURL).GetResponse();
+                        Write-verbose ($attestationURL + " - Response Status Code: " + $attResponse.StatusCode)
+                        $attGood = $attResponse.StatusCode -eq [System.Net.HttpStatusCode]::OK
+
+                        $kpsResponse = [System.Net.WebRequest]::Create($kpsURL).GetResponse();
+                        Write-verbose ($kpsURL + " - Response Status Code: " + $kpsResponse.StatusCode)
+                        $kpsGood = $kpsResponse.StatusCode -eq [System.Net.HttpStatusCode]::OK
+                        
+                        # Both sites are working correctly
+                        if ($attGood -and $kpsGood) {
+                            return $true
                         }
-                        catch {
-                            $result = $false
+
+                        # Only one site is working correctly, known bad state
+                        elseif ($attGood -xor $kpsGood) {
+                            return $false
                         }
+
+                        # If we get here, neither site is responding. Try again and fail after max retries.
                     }
+                    catch { }
+
+                    Write-Verbose ("Could not reach the KPS and Attestation web services. Retrying in 5 seconds. (Attempt {0}/{1})" -f ++$retryAttempts, $using:Node.MaxRetries)
+                    Start-Sleep -Seconds $using:Node.SleepTime
                 }
 
-                return $result
+                return $false
             }
 
             GetScript = {

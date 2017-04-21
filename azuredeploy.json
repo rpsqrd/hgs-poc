@@ -73,7 +73,7 @@
         "addressPrefix": "10.0.0.0/16",
         "subnetName": "Subnet-1",
         "subnetPrefix": "10.0.0.0/24",
-        "subnetdns": "10.0.0.4",
+        "subnetdns": "10.0.0.1",
         "publicIPAddressType": "Dynamic",
         "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('vnetName'))]",
         "subnetRef": "[concat(variables('vnetID'),'/subnets/',variables ('subnetName'))]",
@@ -160,7 +160,7 @@
                         "name": "ipconfig1",
                         "properties": {
                             "privateIPAllocationMethod": "Static",
-                            "privateIPAddress": "[concat('10.0.0.', copyindex(4))]",
+                            "privateIPAddress": "[concat('10.0.0.', copyindex(1))]",
                             "subnet": {
                                 "id": "[variables('subnetRef')]"
                             },
@@ -219,24 +219,6 @@
                                 "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/backendAddressPools/LoadBalancerBackend')]"
                             },
                             "probe": {
-                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/probes/lbprobe80')]"
-                            },
-                            "protocol": "Tcp",
-                            "frontendPort": 80,
-                            "backendPort": 80,
-                            "idleTimeoutInMinutes": 15
-                        },
-                        "name": "[concat(variables('lbrulePrefix'), '80')]"
-                    },
-                    {
-                        "properties": {
-                            "frontendIPConfiguration": {
-                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/frontendIpConfigurations/LoadBalancerFrontend')]"
-                            },
-                            "backendAddressPool": {
-                                "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/backendAddressPools/LoadBalancerBackend')]"
-                            },
-                            "probe": {
                                 "id": "[concat(resourceId('Microsoft.Network/loadBalancers', variables('lbname')), '/probes/lbprobe443')]"
                             },
                             "protocol": "Tcp",
@@ -248,15 +230,6 @@
                     }
                 ],
                 "probes": [
-                    {
-                        "properties": {
-                            "protocol": "Tcp",
-                            "port": 80,
-                            "intervalInSeconds": 15,
-                            "numberOfProbes": 2
-                        },
-                        "name": "[concat(variables('lbprobePrefix'), '80')]"
-                    },
                     {
                         "properties": {
                             "protocol": "Tcp",
@@ -439,7 +412,7 @@
             },
             "resources": [
                 {
-                    "name": "[concat('DSCInit', copyIndex())]",
+                    "name": "[concat('HGS-Configuration-', copyIndex())]",
                     "type": "extensions",
                     "location": "[resourceGroup().location]",
                     "apiVersion": "2015-06-15",
@@ -458,7 +431,7 @@
                             "fileUris": [
                                 "[concat(variables('DSCInitScriptFolder') , variables('DSCInitScriptFileName'))]"
                             ],
-                            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeType:', copyindex()) ,' -HgsServerPrimaryIPAddress 10.0.0.4',  concat(' -HgsServerPrimaryAdminUsername ', variables('adminUsername')), concat(' -HgsServerPrimaryAdminPassword ', parameters('adminPassword')), concat(' -SslCertificateThumbprint ', parameters('sslCertificateThumbprint')), concat(' -EncryptionCertificateThumbprint ', parameters('guardianEncryptionCertificateThumbprint')), concat(' -SigningCertificateThumbprint ', parameters('guardianSigningCertificateThumbprint')))]"
+                            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeType:', copyindex()) ,' -HgsServerPrimaryIPAddress 10.0.0.1',  concat(' -HgsServerPrimaryAdminUsername ', variables('adminUsername')), concat(' -HgsServerPrimaryAdminPassword ', parameters('adminPassword')), concat(' -SslCertificateThumbprint ', parameters('sslCertificateThumbprint')), concat(' -EncryptionCertificateThumbprint ', parameters('guardianEncryptionCertificateThumbprint')), concat(' -SigningCertificateThumbprint ', parameters('guardianSigningCertificateThumbprint')))]"
                         }
                     }
                 }
