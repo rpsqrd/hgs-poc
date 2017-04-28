@@ -439,5 +439,19 @@
                 }
             ]
         }
-    ]
+    ],
+    "outputs": {
+        "AttestationServiceUrl": {
+            "value": "[concat(reference(concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName')), '2015-06-15').dnsSettings.fqdn,'/Attestation')]",
+            "type": "string"
+        },
+        "KeyProtectionServiceUrl": {
+            "value": "[concat(reference(concat('Microsoft.Network/publicIPAddresses/', variables('publicIPAddressName')), '2015-06-15').dnsSettings.fqdn,'/KeyProtection')]",
+            "type": "string"
+        },
+        "AdminUsername": {
+            "value": "[concat('cloudhgs.local\\', variables('adminUsername'))]",
+            "type": "string"
+        }
+    }
 }
