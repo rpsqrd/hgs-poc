@@ -85,7 +85,7 @@
         "frontEndIPConfigID": "[concat(variables('lbID'),'/frontendIPConfigurations/loadBalancerFrontend')]",
         "DSCInitScriptFolder": "https://raw.githubusercontent.com/rpsqrd/HGS-POC/master/scripts/",
         "DSCInitScriptFileName": "dscinit.ps1",
-        "CloudWitnessStorageName": "[concat('witness', uniqueString(subscription().subscriptionId))]"
+        "CloudWitnessStorageName": "[uniqueString(subscription().subscriptionId)]"
     },
     "resources": [
         {
@@ -224,7 +224,8 @@
                             "protocol": "Tcp",
                             "frontendPort": 443,
                             "backendPort": 443,
-                            "idleTimeoutInMinutes": 15
+                            "idleTimeoutInMinutes": 15,
+                            "loadDistribution": "SourceIP"
                         },
                         "name": "[concat(variables('lbrulePrefix'), '443')]"
                     }
@@ -417,7 +418,8 @@
                     "location": "[resourceGroup().location]",
                     "apiVersion": "2015-06-15",
                     "dependsOn": [
-                        "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('vmNamePrefix'), copyindex(1)))]"
+                        "[resourceId('Microsoft.Compute/virtualMachines', concat(variables('vmNamePrefix'), copyindex(1)))]",
+                        "[resourceId('Microsoft.Storage/storageAccounts', variables('CloudWitnessStorageName'))]"
                     ],
                     "tags": {
                         "displayName": "[concat('HGS-Configuration', copyindex(1))]"
@@ -431,7 +433,7 @@
                             "fileUris": [
                                 "[concat(variables('DSCInitScriptFolder') , variables('DSCInitScriptFileName'))]"
                             ],
-                            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeNumber:', copyindex(1)) ,' -HgsServerPrimaryIPAddress 10.0.0.1',  concat(' -HgsServerPrimaryAdminUsername ', variables('adminUsername')), concat(' -HgsServerPrimaryAdminPassword ', parameters('adminPassword')), concat(' -SslCertificateThumbprint ', parameters('sslCertificateThumbprint')), concat(' -EncryptionCertificateThumbprint ', parameters('guardianEncryptionCertificateThumbprint')), concat(' -SigningCertificateThumbprint ', parameters('guardianSigningCertificateThumbprint')))]"
+                            "commandToExecute": "[concat('powershell -ExecutionPolicy Unrestricted -File ', variables('DSCInitScriptFileName') , concat(' -NodeNumber:', copyindex(1)) ,' -HgsServerPrimaryIPAddress 10.0.0.1',  concat(' -HgsServerPrimaryAdminUsername ', variables('adminUsername')), concat(' -HgsServerPrimaryAdminPassword ', parameters('adminPassword')), concat(' -SslCertificateThumbprint ', parameters('sslCertificateThumbprint')), concat(' -EncryptionCertificateThumbprint ', parameters('guardianEncryptionCertificateThumbprint')), concat(' -SigningCertificateThumbprint ', parameters('guardianSigningCertificateThumbprint')), concat(' -CloudWitnessAccountName ', variables('CloudWitnessStorageName')), concat(' -CloudWitnessAccessKey ', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('CloudWitnessStorageName')), '2016-01-01').key1))]"
                         }
                     }
                 }
