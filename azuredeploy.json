@@ -55,6 +55,13 @@
             "metadata": {
                 "description": "The thumbprint of the HGS default guardian's signing certificate."
             }
+        },
+        "vmSize": {
+            "type": "string",
+            "defaultValue": "Standard_DS1_V2",
+            "metadata": {
+                "description": "The Azure Virtual Machine SKU for the HGS nodes."
+            }
         }
     },
     "variables": {
@@ -66,14 +73,13 @@
         "publicIPAddressName": "HGS-PublicIP",
         "vnetName": "HGS-VNET",
         "vmDiskNamePrefix": "HGS-DISK",
-        "vmSize": "Standard_DS1_V2",
         "availabilitySetName": "HGS-AvailabilitySet",
         "availabilitySetPlatformFaultDomainCount": 2,
         "availabilitySetPlatformUpdateDomainCount": 2,
         "addressPrefix": "10.0.0.0/16",
         "subnetName": "Subnet-1",
         "subnetPrefix": "10.0.0.0/24",
-        "subnetdns": "10.0.0.1",
+        "subnetdns": "10.0.0.10",
         "publicIPAddressType": "Dynamic",
         "vnetID": "[resourceId('Microsoft.Network/virtualNetworks',variables('vnetName'))]",
         "subnetRef": "[concat(variables('vnetID'),'/subnets/',variables ('subnetName'))]",
@@ -160,7 +166,7 @@
                         "name": "ipconfig1",
                         "properties": {
                             "privateIPAllocationMethod": "Static",
-                            "privateIPAddress": "[concat('10.0.0.', copyindex(1))]",
+                            "privateIPAddress": "[concat('10.0.0.', copyindex(10))]",
                             "subnet": {
                                 "id": "[variables('subnetRef')]"
                             },
@@ -348,7 +354,7 @@
                     "id": "[resourceId('Microsoft.Compute/availabilitySets',variables('availabilitySetName'))]"
                 },
                 "hardwareProfile": {
-                    "vmSize": "[variables('vmSize')]"
+                    "vmSize": "[parameters('vmSize')]"
                 },
                 "osProfile": {
                     "computerName": "[concat(variables('vmNamePrefix'), copyindex(1))]",
