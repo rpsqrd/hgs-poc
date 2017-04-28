@@ -9,7 +9,7 @@ param(
     [string] $HgsServerPrimaryAdminUsername = "hgsadmin",
 
     [Parameter(Mandatory = $false)]
-    [string] $HgsServerPrimaryAdminPassword = 'Password1234',
+    [string] $HgsServerPrimaryAdminPassword,
 
     [Parameter(Mandatory = $true)]
     [string] $SslCertificateThumbprint,
@@ -18,7 +18,13 @@ param(
     [string] $EncryptionCertificateThumbprint,
 
     [Parameter(Mandatory = $true)]
-    [string] $SigningCertificateThumbprint
+    [string] $SigningCertificateThumbprint,
+
+    [Parameter(Mandatory = $true)]
+    [string] $CloudWitnessAccountName,
+
+    [Parameter(Mandatory = $true)]
+    [string] $CloudWitnessAccessKey
 )
 
 ### Install Windows Features and AutoReboot
@@ -145,7 +151,7 @@ Configuration xHGS
             DependsOn = '[Script]InstallHGSServer'
 
             SetScript = {
-                start-transcript -path ($using:Node.LogFolder + "\initialize1sthgsserver.log") -Append -Force
+                Start-Transcript -path ($using:Node.LogFolder + "\initialize1sthgsserver.log") -Append -Force
                 
                 # Clear the configuration first in case any remnants from a previous initialization attempt exist
                 Write-Verbose "Clearing the HGS configuration to ensure a clean state."
@@ -175,6 +181,8 @@ Configuration xHGS
                     $cert = Get-Item (Join-Path Cert:\LocalMachine\My $_)
                     $cert.Acl = $cert.Acl | Add-AccessRule $gmsa.SamAccountName Read Allow
                 }
+
+                Stop-Transcript
             }
 
             TestScript = {
@@ -291,6 +299,42 @@ Configuration xHGS
             ValueType = "String"
             Force = $true
         }
+
+        Script ClusterCloudWitness
+        {
+            DependsOn = '[Script]InitializeHgsServer'
+
+            SetScript = {
+                Set-ClusterQuorum -CloudWitness -AccountName $Node.CloudWitnessAccountName -AccessKey $Node.CloudWitnessAccessKey
+            }
+
+            TestScript = {
+                $witnesses = (Get-ClusterQuorum).QuorumResource
+                if (-not $cloudWitness) {
+                    return $false
+                }
+
+                return ($witnesses | Where-Object ResourceType -eq "Cloud Witness").Count -gt 0
+            }
+
+            GetScript = {
+                $state = "NotConfigured"
+
+                $witnesses = (Get-ClusterQuorum).QuorumResource
+                if ($cloudWitness) {
+                    $cloudwitness = $witnesses | Where-Object ResourceType -eq "Cloud Witness"
+
+                    if ($cloudWitness.Count -gt 1) {
+                        $cloudWitness = $cloudWitness[0]
+                    }
+                    
+                    $state = $cloudWitness.State
+                }
+
+                return @{ Result = $state.ToString() }
+
+            }
+        }
     } #End of Node
 
     ### Setup Additional Node
@@ -302,14 +346,14 @@ Configuration xHGS
         WaitForAny WaitForADOnPrimaryToReady {
             NodeName = $Node.HgsServerPrimaryIPAddress
             ResourceName = "[Script]InitializeHgsServer"
-            RetryCount = 2 * 60
-            RetryIntervalSec = 30
+            RetryCount = $Node.SecondaryNodeMaxRetries
+            RetryIntervalSec = $Node.SleepTime
             DependsOn = '[xHGSCommon]CommonActivitySecondNode'
         }
 
         Log ADOnPrimaryReady {
             DependsOn = '[WaitForAny]WaitForADOnPrimaryToReady'
-            Message = "AD Ready on : $Node.HgsServerPrimaryIPAddress "
+            Message = "AD Ready on primary node ($Node.HgsServerPrimaryIPAddress)"
         }
 
         Script ChangeDNSAddress {
@@ -371,9 +415,9 @@ Configuration xHGS
             }
 
             GetScript = {
-                $result = (Get-ADDomain -Current LocalComputer)
+                $result = Get-ADDomain -Current LocalComputer
                 return  @{
-                    Result = $result.DistinguishedName
+                    Result = $result.DistinguishedName.ToString()
                 }
             }
         } #End of Intall HgsServer
@@ -387,102 +431,9 @@ Configuration xHGS
                 Write-Verbose "Clearing the HGS configuration to ensure a clean state."
                 Clear-HgsServer -Confirm:$false
 
-
-
-                $cred = (new-object -typename System.Management.Automation.PSCredential -argumentlist "$($using:Node.HgsDomainName)\$($using:Node.HgsServerPrimaryAdminUsername)", (ConvertTo-SecureString ($($using:Node.HgsServerPrimaryAdminPassword )) -AsPlainText -Force))
-                $sig = @'
-                                [DllImport("advapi32.dll", SetLastError = true)]
-                                public static extern bool LogonUser(string lpszUsername, string lpszDomain, string lpszPassword, int dwLogonType, int dwLogonProvider, ref IntPtr phToken);
-                                [DllImport("kernel32.dll")]
-                                public static extern Boolean CloseHandle(IntPtr hObject);
-'@
-
-                $ImpersonateLib = Add-Type -PassThru -Namespace 'Lib.Impersonation' -Name ImpersonationLib -MemberDefinition $sig
-                [IntPtr] $userToken = [Security.Principal.WindowsIdentity]::GetCurrent().Token
-                $userToken
-                $bLogin = $ImpersonateLib::LogonUser($cred.GetNetworkCredential().UserName, $cred.GetNetworkCredential().Domain, $cred.GetNetworkCredential().Password, 9, 0, [ref]$userToken)
-
-                if ($bLogin) {
-                    $Identity = New-Object Security.Principal.WindowsIdentity $userToken
-                    $context = $Identity.Impersonate()
-                }
-                else {
-                    throw "Can't get Impersonate Token from DSC toLogon as User $cred.GetNetworkCredential().UserName."
-                }
-
-                $_HttpsCertificatePassword = ConvertTo-SecureString -AsPlainText "$($using:Node.HttpsCertificatePassword)" -Force
-                $_EncryptionCertificatePassword = ConvertTo-SecureString -AsPlainText "$($using:Node.EncryptionCertificatePassword)" -Force
-                $_SigningCertificatePassword = ConvertTo-SecureString -AsPlainText "$($using:Node.SigningCertificatePassword)" -Force
-                if ([boolean]::Parse("$($using:Node.GenerateSelfSignedCertificate)")) {
-                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | Where-Object {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
-                        ### https cert need be imported to root store
-                        $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath (([string]::Format('\\{0}\{1}', $($using:Node.HgsServerPrimaryIPAddress), $($using:Node.HttpsCertificatePath))).replace(":", "$")) -Password $_HttpsCertificatePassword
-                        $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\root -FilePath (([string]::Format('\\{0}\{1}', $($using:Node.HgsServerPrimaryIPAddress), $($using:Node.HttpsCertificatePath))).replace(":", "$")) -Password $_HttpsCertificatePassword
-                    }
-                }
-                else {
-                    if (($httpsCert = Get-ChildItem  Cert:\LocalMachine\root | Where-Object {$_.Subject -eq ('CN=' + $_Httpscertname )}) -eq $null) {
-                        ### https cert need be imported to root store
-                        $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath $($using:Node.HttpsCertificatePath) -Password $_HttpsCertificatePassword
-                        $httpsCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\root -FilePath $($using:Node.HttpsCertificatePath) -Password $_HttpsCertificatePassword
-                    }
-                }
-
-                [System.Security.Cryptography.RSACng] $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($httpsCert)
-                [System.Security.Cryptography.CngKey] $key = $rsa.Key
-                Write-Verbose "https Private key is located at $($key.UniqueName)"
-                $httpsCertPath = "C:\ProgramData\Microsoft\Crypto\Keys\$($key.UniqueName)"
-                $acl = Get-Acl -Path $httpsCertPath
-                $permission = "Authenticated Users", "FullControl", "Allow"
-                $accessRule = new-object System.Security.AccessControl.FileSystemAccessRule $permission
-                $acl.AddAccessRule($accessRule)
-                Set-Acl $httpsCertPath $acl
-
                 Initialize-HgsServer -HgsServerIPAddress $($using:Node.HgsServerPrimaryIPAddress) -Verbose -Confirm:$false
 
-                Set-HgsServer -Http -Https -HttpPort $($using:Node.HttpPort ) `
-                                                -HttpsPort $($using:Node.HttpsPort ) `
-                                                -HttpsCertificateThumbprint $httpsCert.thumbprint `
-                                                -Confirm:$false -Verbose
-
-                if ([boolean]::Parse("$($using:Node.GenerateSelfSignedCertificate)")) {
-                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
-                        $encryptionCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\My -FilePath (([string]::Format('\\{0}\{1}', $($using:Node.HgsServerPrimaryIPAddress), $($using:Node.EncryptionCertificatePath))).replace(":", "$")) -Password $_EncryptionCertificatePassword
-                    }
-
-                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
-                        $signingCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\My -FilePath (([string]::Format('\\{0}\{1}', $($using:Node.HgsServerPrimaryIPAddress), $($using:Node.SigningCertificatePath))).replace(":", "$")) -Password $_SigningCertificatePassword
-                    }
-                }
-                else {
-                    if (($encryptionCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_encryptioncertname )}) -eq $null) {
-                        $encryptionCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath "$($using:Node.EncryptionCertificatePath)" -Password $_EncryptionCertificatePassword
-                    }
-
-                    if (($signingCert = Get-ChildItem  Cert:\LocalMachine\my | Where-Object {$_.Subject -eq ('CN=' + $_signingcertname )}) -eq $null) {
-                        $signingCert = Import-PfxCertificate -CertStoreLocation Cert:\LocalMachine\my -FilePath "$($using:Node.SigningCertificatePath)" -Password $_SigningCertificatePassword
-                    }
-                }
-
-                [System.Security.Cryptography.RSACng] $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($encryptionCert)
-                [System.Security.Cryptography.CngKey] $key = $rsa.Key
-                Write-Verbose "encryptionCert Private key is located at $($key.UniqueName)"
-                $encryptionCertPath = "C:\ProgramData\Microsoft\Crypto\Keys\$($key.UniqueName)"
-                $acl = Get-Acl -Path $encryptionCertPath
-                $permission = "Authenticated Users", "FullControl", "Allow"
-                $accessRule = new-object System.Security.AccessControl.FileSystemAccessRule $permission
-                $acl.AddAccessRule($accessRule)
-                Set-Acl $encryptionCertPath $acl
-
-                [System.Security.Cryptography.RSACng] $rsa = [System.Security.Cryptography.X509Certificates.RSACertificateExtensions]::GetRSAPrivateKey($SigningCert)
-                [System.Security.Cryptography.CngKey] $key = $rsa.Key
-                Write-Verbose "SigningCert Private key is located at $($key.UniqueName)"
-                $SigningCertPath = "C:\ProgramData\Microsoft\Crypto\Keys\$($key.UniqueName)"
-                $acl = Get-Acl -Path $SigningCertPath
-                $permission = "Authenticated Users", "FullControl", "Allow"
-                $accessRule = new-object System.Security.AccessControl.FileSystemAccessRule $permission
-                $acl.AddAccessRule($accessRule)
-                Set-Acl $SigningCertPath $acl
+                Set-HgsServer -Http -Https -HttpsCertificateThumbprint $Node.SslCertificateThumbprint -Confirm:$false -Verbose
             }
 
             TestScript = {
@@ -577,8 +528,11 @@ $ConfigData = @{
             HgsServerPrimaryIPAddress = $HgsServerPrimaryIPAddress
             HgsServerPrimaryAdminUsername = $HgsServerPrimaryAdminUsername
             HgsServerPrimaryAdminPassword = $HgsServerPrimaryAdminPassword
+            CloudWitnessAccountName = $CloudWitnessAccountName
+            CloudWitnessAccesskEy = $CloudWitnessAccessKey
             SleepTime = 5
             MaxRetries = 60
+            SecondaryNodeMaxRetries = 360
             LogFolder = (Join-Path (Get-CimInstance Win32_OperatingSystem).WindowsDirectory "\Logs\HgsServer")
         }
     )
