@@ -14,16 +14,16 @@
                 "description": "DNS prefix for the region's cloud app service. (e.g. 'microsoft' => 'microsoft.westus2.cloudapp.azure.com')"
             }
         },
-        "keyVaultName": {
+        "keyVaultId": {
             "type": "string",
             "metadata": {
-                "description": "Name of the Azure Key Vault instance containing the guardian and SSL certificates"
+                "description": "ID of the key vault where the HGS Guardian and SSL certs are stored."
             }
         },
         "sslCertificateUri": {
             "type": "string",
             "metadata": {
-                "description": "A versioned Azure KeyVault secret URI for the SSL certificate"
+                "description": "A versioned Azure KeyVault secret URI for the SSL certificate."
             }
         },
         "sslCertificateThumbprint": {
@@ -65,7 +65,6 @@
         }
     },
     "variables": {
-        "keyVaultResourceGroup": "HGS-as-IaaS-Shared-Assets",
         "adminUsername": "hgsadmin",
         "vmNamePrefix": "HGS-NODE",
         "lbName": "HGS-LoadBalancer",
@@ -374,7 +373,7 @@
                     "secrets": [
                         {
                             "sourceVault": {
-                                "id": "[resourceId(variables('keyVaultResourceGroup'), 'Microsoft.KeyVault/vaults', parameters('keyVaultName'))]"
+                                "id": "[parameters('keyVaultId')]"
                             },
                             "vaultCertificates": [
                                 {
